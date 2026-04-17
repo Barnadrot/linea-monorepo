@@ -183,15 +183,43 @@ func (p *Params) noSisTransversalHash(v []smartvectors.SmartVector) []field.Octu
 	// CompressPoseidon2x16 processes 16 independent MD hash chains in parallel
 	// using AVX-512, much faster than per-column sequential hashing.
 	if nbRows%8 == 0 {
+		// Pre-extract underlying slices to avoid per-element interface
+		// dispatch + enable row-major transpose for cache locality.
+		regSlices := make([]field.Vector, nbRows)
+		allRegular := true
+		for j := 0; j < nbRows; j++ {
+			if reg, ok := v[j].(*smartvectors.Regular); ok {
+				regSlices[j] = field.Vector(*reg)
+			} else {
+				allRegular = false
+				break
+			}
+		}
+
 		n16 := nbCols / 16 // number of full 16-column batches
 		r16 := nbCols % 16 // remaining columns
 
-		if n16 > 0 {
+		if n16 > 0 && allRegular {
 			parallel.Execute(n16, func(start, stop int) {
 				matrix := make([]field.Element, 16*nbRows)
 				for batchID := start; batchID < stop; batchID++ {
 					colStart := batchID * 16
-					// Transpose: collect 16 columns into column-major layout
+					// Row-major transpose: reads 16 consecutive elements per
+					// row (1 cache line) via direct slice indexing.
+					for row := 0; row < nbRows; row++ {
+						rowData := regSlices[row]
+						for col := 0; col < 16; col++ {
+							matrix[col*nbRows+row] = rowData[colStart+col]
+						}
+					}
+					vgnark.CompressPoseidon2x16(matrix, nbRows, res[colStart:colStart+16])
+				}
+			})
+		} else if n16 > 0 {
+			parallel.Execute(n16, func(start, stop int) {
+				matrix := make([]field.Element, 16*nbRows)
+				for batchID := start; batchID < stop; batchID++ {
+					colStart := batchID * 16
 					for col := 0; col < 16; col++ {
 						for row := 0; row < nbRows; row++ {
 							matrix[col*nbRows+row] = v[row].Get(colStart + col)
