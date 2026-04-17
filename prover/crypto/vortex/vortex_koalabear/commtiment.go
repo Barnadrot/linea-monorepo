@@ -178,36 +178,6 @@ func (p *Params) noSisTransversalHash(v []smartvectors.SmartVector) []field.Octu
 
 	nbRows := len(v)
 	res := make([]field.Octuplet, nbCols)
-
-	// Pre-extract underlying slices from Regular vectors to avoid
-	// per-element interface dispatch (eliminates vtable lookup per Get call).
-	regSlices := make([]field.Vector, nbRows)
-	allRegular := true
-	for j := 0; j < nbRows; j++ {
-		if reg, ok := v[j].(*smartvectors.Regular); ok {
-			regSlices[j] = field.Vector(*reg)
-		} else {
-			allRegular = false
-			break
-		}
-	}
-
-	if allRegular {
-		parallel.Execute(nbCols, func(start, end int) {
-			curCol := make([]field.Element, nbRows)
-			h := poseidon2_koalabear.NewMDHasher()
-			for i := start; i < end; i++ {
-				for j := 0; j < nbRows; j++ {
-					curCol[j] = regSlices[j][i]
-				}
-				h.WriteElements(curCol...)
-				res[i] = h.SumElement()
-				h.Reset()
-			}
-		})
-		return res
-	}
-
 	parallel.Execute(nbCols, func(start, end int) {
 		curCol := make([]field.Element, nbRows)
 		h := poseidon2_koalabear.NewMDHasher()
