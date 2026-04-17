@@ -191,9 +191,11 @@ func (p *Params) noSisTransversalHash(v []smartvectors.SmartVector) []field.Octu
 				matrix := make([]field.Element, 16*nbRows)
 				for batchID := start; batchID < stop; batchID++ {
 					colStart := batchID * 16
-					// Transpose: collect 16 columns into column-major layout
-					for col := 0; col < 16; col++ {
-						for row := 0; row < nbRows; row++ {
+					// Transpose: row-major loop order reads 16 consecutive
+					// elements per row (1 cache line) instead of striding
+					// across all rows per column.
+					for row := 0; row < nbRows; row++ {
+						for col := 0; col < 16; col++ {
 							matrix[col*nbRows+row] = v[row].Get(colStart + col)
 						}
 					}
