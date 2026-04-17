@@ -2,6 +2,8 @@ module github.com/consensys/linea-monorepo/prover
 
 go 1.25.7
 
+replace github.com/consensys/gnark-crypto => /home/ubuntu/zk-autoresearch/gnark-crypto
+
 require (
 	github.com/bits-and-blooms/bitset v1.24.4
 	github.com/consensys/compress v0.3.0
@@ -28,7 +30,7 @@ require (
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/crypto v0.48.0
 	golang.org/x/net v0.49.0
-	golang.org/x/sync v0.19.0
+	golang.org/x/sync v0.20.0
 	golang.org/x/time v0.9.0
 )
 
@@ -100,6 +102,6 @@ require (
 	github.com/pkg/profile v1.7.0
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	golang.org/x/exp v0.0.0-20251219203646-944ab1f22d93
-	golang.org/x/sys v0.41.0 // indirect
+	golang.org/x/sys v0.42.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
