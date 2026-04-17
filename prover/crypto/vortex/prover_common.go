@@ -40,21 +40,17 @@ func LinearCombination(proof *OpeningProof, v []smartvectors.SmartVector, random
 		// Accumulate directly into the shared linComb slice — each goroutine
 		// owns a disjoint [start:stop) range, so no data race and no copy needed.
 		localLinComb := vectorext.Vector(linComb[start:stop])
-		// Defer constant contributions: each constant adds the same value to all
-		// positions. Accumulate into one scalar, then broadcast-add once at the end.
-		var constAccum fext.Element
-		hasConst := false
 		for i := range v {
 			_sv := v[i]
+			// we distinguish the case of a regular vector and constant to avoid
+			// unnecessary allocations and copies
 			switch _svt := _sv.(type) {
 			case *smartvectors.Constant:
-				// Use MulByElement (4 base muls) instead of GetExt + Mul (9 base muls).
-				// Defer the broadcast add to after the loop.
-				baseVal := _svt.Val()
-				var scaled fext.Element
-				scaled.MulByElement(&x, &baseVal)
-				constAccum.Add(&constAccum, &scaled)
-				hasConst = true
+				cst := _svt.GetExt(0)
+				cst.Mul(&cst, &x)
+				for j := range localLinComb {
+					localLinComb[j].Add(&localLinComb[j], &cst)
+				}
 				x.Mul(&x, &randomCoin)
 				continue
 			case *smartvectors.Regular:
@@ -75,11 +71,6 @@ func LinearCombination(proof *OpeningProof, v []smartvectors.SmartVector, random
 			localLinComb.Add(localLinComb, scratch)
 			x.Mul(&x, &randomCoin)
 
-		}
-		if hasConst {
-			for j := range localLinComb {
-				localLinComb[j].Add(&localLinComb[j], &constAccum)
-			}
 		}
 	})
 
